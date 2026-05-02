@@ -342,15 +342,15 @@ wire         saturn_unlocked;                   // driven by hps_io UIO_DB9_KEY 
 // [MiSTer-DB9-Pro END]
 
 // [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: joydb wrapper wires + instance
+wire         CLK_JOY = CLK_50M;                 // Assign clock between 40-50Mhz
 wire   [7:0] USER_OUT_DRIVE;
 wire   [7:0] USER_PP_DRIVE;
 wire  [15:0] joydb_1, joydb_2;
 wire         joydb_1ena, joydb_2ena;
 wire  [15:0] joy_raw_payload;
 
-// joydb wants a 40-50 MHz clock; CLK_50M is always running, clk_sys is PLL-derived.
 joydb joydb (
-  .clk             ( CLK_50M         ),
+  .clk             ( CLK_JOY         ),
   .USER_IN         ( USER_IN         ),
   .joy_type        ( joy_type        ),
   .joy_2p          ( joy_2p          ),
