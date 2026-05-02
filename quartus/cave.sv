@@ -153,14 +153,17 @@ module emu (
   // 1 - D-/TX
   // 2..6 - USR2..USR6
   // Set USER_OUT to 1 to read from USER_IN.
-  input   [6:0] USER_IN,
-  output  [6:0] USER_OUT,
+  output        USER_OSD,
+  // [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: per-pin push-pull mask + USER_IO[7]
+  output  [7:0] USER_PP,
+  input   [7:0] USER_IN,
+  output  [7:0] USER_OUT,
+  // [MiSTer-DB9 END]
 
   input         OSD_STATUS
 );
 
 assign ADC_BUS  = 'Z;
-assign USER_OUT = '1;
 assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
@@ -199,6 +202,12 @@ localparam CONF_STR = {
   "P1-;",
   "P1OIL,PCB,Dangun Feveron,DoDonPachi,DonPachi,ESP Ra.De.,Puzzle Uo Poko,Guwange,Gaia,Hotdog Storm;",
   "-;",
+  // [MiSTer-DB9-Pro BEGIN] - Saturn-first joy_type (canonical bit notation)
+  "O[127:126],UserIO Joystick,Off,Saturn,DB9MD,DB15;",
+  // [MiSTer-DB9-Pro END]
+  // [MiSTer-DB9 BEGIN] - DB9 2P split
+  "O[125],UserIO Players, 1 Player,2 Players;",
+  // [MiSTer-DB9 END]
   "R0,Reset;",
   "J,B0,B1,B2,B3,Start,Coin,Pause;",
   "V,v",`BUILD_DATE," by nullobject;"
@@ -301,7 +310,9 @@ sdramclk_ddr
 ////////////////////////////////////////////////////////////////////////////////
 
 wire  [1:0] buttons;
-wire [31:0] status;
+// [MiSTer-DB9 BEGIN] - widened to 128 bits for joy_type at [127:126] and joy_2p at [125]
+wire [127:0] status;
+// [MiSTer-DB9 END]
 wire        forced_scandoubler;
 wire [21:0] gamma_bus;
 wire        new_vmode;
@@ -319,7 +330,50 @@ wire [15:0] ioctl_din;
 wire [15:0] ioctl_dout;
 
 wire [10:0] ps2_key;
-wire [31:0] joystick_0, joystick_1;
+wire [31:0] joystick_0_USB, joystick_1_USB;
+
+// [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: joydb wrapper
+wire   [1:0] joy_type        = status[127:126]; // 0=Off, 1=Saturn, 2=DB9MD, 3=DB15
+wire         joy_2p          = status[125];
+// [MiSTer-DB9 END]
+
+// [MiSTer-DB9-Pro BEGIN] - Saturn key gate
+wire         saturn_unlocked;                   // driven by hps_io UIO_DB9_KEY (0xFE)
+// [MiSTer-DB9-Pro END]
+
+// [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: joydb wrapper wires + instance
+wire   [7:0] USER_OUT_DRIVE;
+wire   [7:0] USER_PP_DRIVE;
+wire  [15:0] joydb_1, joydb_2;
+wire         joydb_1ena, joydb_2ena;
+wire  [15:0] joy_raw_payload;
+
+joydb joydb (
+  .clk             ( clk_sys         ),
+  .USER_IN         ( USER_IN         ),
+  .joy_type        ( joy_type        ),
+  .joy_2p          ( joy_2p          ),
+  .saturn_unlocked ( saturn_unlocked ),
+  .USER_OUT_DRIVE  ( USER_OUT_DRIVE  ),
+  .USER_PP_DRIVE   ( USER_PP_DRIVE   ),
+  .USER_OSD        ( USER_OSD        ),
+  .joydb_1         ( joydb_1         ),
+  .joydb_2         ( joydb_2         ),
+  .joydb_1ena      ( joydb_1ena      ),
+  .joydb_2ena      ( joydb_2ena      ),
+  .joy_raw         ( joy_raw_payload )
+);
+
+assign USER_OUT = USER_OUT_DRIVE;
+assign USER_PP  = USER_PP_DRIVE;
+// [MiSTer-DB9 END]
+
+// Cave joystick layout: [10]=Pause, [9]=Coin, [8]=Start, [7:4]=B3..B0, [3:0]=URLD.
+// joydb layout:         [12]=L_trigger (Saturn), [11]=Mode, [10]=Start, [7:0]=ZYXCBAUDLR.
+// [MiSTer-DB9-Pro BEGIN] - DB controllers muted while OSD is open
+wire [31:0] joystick_0 = joydb_1ena ? (OSD_STATUS ? 32'b0 : {joydb_1[12],joydb_1[11],joydb_1[10],joydb_1[7:0]}) : joystick_0_USB;
+wire [31:0] joystick_1 = joydb_2ena ? (OSD_STATUS ? 32'b0 : {joydb_2[12],joydb_2[11],joydb_2[10],joydb_2[7:0]}) : joydb_1ena ? joystick_0_USB : joystick_1_USB;
+// [MiSTer-DB9-Pro END]
 
 hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io (
   .clk_sys(clk_sys),
@@ -344,10 +398,16 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io (
   .ioctl_din(ioctl_din),
   .ioctl_dout(ioctl_dout),
 
-  .joystick_0(joystick_0),
-  .joystick_1(joystick_1),
+  .joystick_0(joystick_0_USB),
+  .joystick_1(joystick_1_USB),
 
-  .ps2_key(ps2_key)
+  .ps2_key(ps2_key),
+  // [MiSTer-DB9 BEGIN] - DB9/SNAC8 support: joy_raw
+  .joy_raw(OSD_STATUS ? joy_raw_payload : 16'b0),
+  // [MiSTer-DB9 END]
+  // [MiSTer-DB9-Pro BEGIN] - Saturn key gate
+  .saturn_unlocked(saturn_unlocked)
+  // [MiSTer-DB9-Pro END]
 );
 
 ////////////////////////////////////////////////////////////////////////////////
