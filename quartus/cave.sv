@@ -348,8 +348,9 @@ wire  [15:0] joydb_1, joydb_2;
 wire         joydb_1ena, joydb_2ena;
 wire  [15:0] joy_raw_payload;
 
+// joydb wants a 40-50 MHz clock; CLK_50M is always running, clk_sys is PLL-derived.
 joydb joydb (
-  .clk             ( clk_sys         ),
+  .clk             ( CLK_50M         ),
   .USER_IN         ( USER_IN         ),
   .joy_type        ( joy_type        ),
   .joy_2p          ( joy_2p          ),
@@ -370,6 +371,7 @@ assign USER_PP  = USER_PP_DRIVE;
 
 // Cave joystick layout: [10]=Pause, [9]=Coin, [8]=Start, [7:4]=B3..B0, [3:0]=URLD.
 // joydb layout:         [12]=L_trigger (Saturn), [11]=Mode, [10]=Start, [7:0]=ZYXCBAUDLR.
+// 1P DB mode (joydb_1ena & ~joydb_2ena): USB joy_0 falls through to player 2 so a USB pad can play P2.
 // [MiSTer-DB9-Pro BEGIN] - DB controllers muted while OSD is open
 wire [31:0] joystick_0 = joydb_1ena ? (OSD_STATUS ? 32'b0 : {joydb_1[12],joydb_1[11],joydb_1[10],joydb_1[7:0]}) : joystick_0_USB;
 wire [31:0] joystick_1 = joydb_2ena ? (OSD_STATUS ? 32'b0 : {joydb_2[12],joydb_2[11],joydb_2[10],joydb_2[7:0]}) : joydb_1ena ? joystick_0_USB : joystick_1_USB;
