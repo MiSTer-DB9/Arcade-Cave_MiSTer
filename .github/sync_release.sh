@@ -18,8 +18,8 @@ CORE_NAME=(Arcade-Cave)
 UPSTREAM_CORE_NAME=(Arcade-Cave)
 MAIN_BRANCH="main"
 UPSTREAM_BRANCH="main"
-COMPILATION_INPUT=(quartus/cave.qpf)
-COMPILATION_OUTPUT=(quartus/output_files/cave.rbf)
+COMPILATION_INPUT=(Arcade-Cave.qpf)
+COMPILATION_OUTPUT=(output_files/Arcade-Cave.rbf)
 
 # fork-only cores have no upstream; sync_release is a no-op
 if [[ -z "${UPSTREAM_REPO}" ]]; then
