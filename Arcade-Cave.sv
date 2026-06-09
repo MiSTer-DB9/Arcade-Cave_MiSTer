@@ -438,8 +438,8 @@ assign USER_PP  = USER_PP_DRIVE;
 // joydb layout:         [12]=L_trigger (Saturn), [11]=Mode, [10]=Start, [7:0]=ZYXCBAUDLR.
 // 1P DB mode (joydb_1ena & ~joydb_2ena): USB joy_0 falls through to player 2 so a USB pad can play P2.
 // [MiSTer-DB9-Pro BEGIN] - DB controllers muted while OSD is open
-wire [31:0] joystick_0 = joydb_1ena ? (OSD_STATUS ? 32'b0 : {joydb_1[12],joydb_1[11],joydb_1[10],joydb_1[7:0]}) : joystick_0_USB;
-wire [31:0] joystick_1 = joydb_2ena ? (OSD_STATUS ? 32'b0 : {joydb_2[12],joydb_2[11],joydb_2[10],joydb_2[7:0]}) : joydb_1ena ? joystick_0_USB : joystick_1_USB;
+wire [31:0] joystick_0 = joydb_1ena ? (OSD_STATUS ? 32'b0 : joydb_1_mapped[10:0]) : joystick_0_USB;
+wire [31:0] joystick_1 = joydb_2ena ? (OSD_STATUS ? 32'b0 : joydb_2_mapped[10:0]) : joydb_1ena ? joystick_0_USB : joystick_1_USB;
 // [MiSTer-DB9-Pro END]
 
 hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io (
